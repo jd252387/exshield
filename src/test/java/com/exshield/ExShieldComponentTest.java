@@ -41,7 +41,7 @@ class ExShieldComponentTest {
     @Test
     void testPreparePassesWhenRulePasses() throws IOException {
         ExShieldComponent component = createComponent(
-                createRuleConfig("test-rule", "count <= 100", null, null)
+                createRuleConfig("test-rule", "query.count <= 100", null, null)
         );
 
         setAnalysis(Map.of("count", 50), null);
@@ -53,7 +53,7 @@ class ExShieldComponentTest {
     @Test
     void testPrepareThrowsWhenRuleFails() {
         ExShieldComponent component = createComponent(
-                createRuleConfig("max-count", "count <= 100", "count", "Count must not exceed 100")
+                createRuleConfig("max-count", "query.count <= 100", "query.count", "Count must not exceed 100")
         );
 
         setAnalysis(Map.of("count", 150), null);
@@ -64,7 +64,7 @@ class ExShieldComponentTest {
 
         assertEquals(SolrException.ErrorCode.BAD_REQUEST.code, exception.code());
         assertTrue(exception.getMessage().contains("max-count"));
-        assertTrue(exception.getMessage().contains("count <= 100"));
+        assertTrue(exception.getMessage().contains("query.count <= 100"));
         assertTrue(exception.getMessage().contains("150"));
         assertTrue(exception.getMessage().contains("Count must not exceed 100"));
     }
@@ -72,7 +72,7 @@ class ExShieldComponentTest {
     @Test
     void testPrepareSkipsWhenBypassRequested() throws IOException {
         ExShieldComponent component = createComponentWithBypass(
-                createRuleConfig("test-rule", "count <= 100", null, null)
+                createRuleConfig("test-rule", "query.count <= 100", null, null)
         );
 
         setAnalysis(Map.of("count", 150), null); // Would fail
@@ -84,7 +84,7 @@ class ExShieldComponentTest {
     @Test
     void testPrepareDoesNotBypassWhenNotAllowed() {
         ExShieldComponent component = createComponent(
-                createRuleConfig("test-rule", "count <= 100", null, null)
+                createRuleConfig("test-rule", "query.count <= 100", null, null)
         );
 
         setAnalysis(Map.of("count", 150), null);
@@ -96,7 +96,7 @@ class ExShieldComponentTest {
     @Test
     void testPrepareSkipsWhenNoAnalysis() throws IOException {
         ExShieldComponent component = createComponent(
-                createRuleConfig("test-rule", "count <= 100", null, null)
+                createRuleConfig("test-rule", "query.count <= 100", null, null)
         );
 
         // No analysis set
@@ -108,7 +108,7 @@ class ExShieldComponentTest {
     @Test
     void testPrepareFailsOnMissingAnalysisWhenConfigured() {
         ExShieldComponent component = createComponentFailOnMissing(
-                createRuleConfig("test-rule", "count <= 100", null, null)
+                createRuleConfig("test-rule", "query.count <= 100", null, null)
         );
 
         // No analysis set
@@ -124,11 +124,11 @@ class ExShieldComponentTest {
     @Test
     void testPrepareWithMultipleRulesAllPass() throws IOException {
         ExShieldComponent component = createComponent(
-                createRuleConfig("rule1", "count <= 100", null, null),
-                createRuleConfig("rule2", "total <= 1000", null, null)
+                createRuleConfig("rule1", "query.count <= 100", null, null),
+                createRuleConfig("rule2", "query.size <= 1000", null, null)
         );
 
-        setAnalysis(Map.of("count", 50, "total", 500), null);
+        setAnalysis(Map.of("count", 50, "size", 500), null);
         setSolrParams(Map.of());
 
         assertDoesNotThrow(() -> component.prepare(responseBuilder));
@@ -137,11 +137,11 @@ class ExShieldComponentTest {
     @Test
     void testPrepareWithMultipleRulesFirstFails() {
         ExShieldComponent component = createComponent(
-                createRuleConfig("rule1", "count <= 100", null, null),
-                createRuleConfig("rule2", "total <= 1000", null, null)
+                createRuleConfig("rule1", "query.count <= 100", null, null),
+                createRuleConfig("rule2", "query.size <= 1000", null, null)
         );
 
-        setAnalysis(Map.of("count", 150, "total", 500), null);
+        setAnalysis(Map.of("count", 150, "size", 500), null);
         setSolrParams(Map.of());
 
         SolrException exception = assertThrows(SolrException.class,
@@ -153,11 +153,11 @@ class ExShieldComponentTest {
     @Test
     void testPrepareWithMultipleRulesSecondFails() {
         ExShieldComponent component = createComponent(
-                createRuleConfig("rule1", "count <= 100", null, null),
-                createRuleConfig("rule2", "total <= 1000", null, null)
+                createRuleConfig("rule1", "query.count <= 100", null, null),
+                createRuleConfig("rule2", "query.size <= 1000", null, null)
         );
 
-        setAnalysis(Map.of("count", 50, "total", 1500), null);
+        setAnalysis(Map.of("count", 50, "size", 1500), null);
         setSolrParams(Map.of());
 
         SolrException exception = assertThrows(SolrException.class,
@@ -169,7 +169,7 @@ class ExShieldComponentTest {
     @Test
     void testPrepareWithMethodCalls() throws IOException {
         ExShieldComponent component = createComponent(
-                createRuleConfig("test-rule", "stats.getCount() <= 100", null, null)
+                createRuleConfig("test-rule", "query.stats.getCount() <= 100", null, null)
         );
 
         MockStats stats = new MockStats(50);
@@ -185,7 +185,7 @@ class ExShieldComponentTest {
                 createRuleConfig("test-rule", "filters == null || filters['count'] <= 100", null, null)
         );
 
-        setAnalysis(Map.of("query", "test"), Map.of("count", 50));
+        setAnalysis(Map.of("someKey", "test"), Map.of("count", 50));
         setSolrParams(Map.of());
 
         assertDoesNotThrow(() -> component.prepare(responseBuilder));
@@ -194,7 +194,7 @@ class ExShieldComponentTest {
     @Test
     void testPrepareWithMapBasedAnalysis() throws IOException {
         ExShieldComponent component = createComponent(
-                createRuleConfig("test-rule", "count <= 100", null, null)
+                createRuleConfig("test-rule", "query.count <= 100", null, null)
         );
 
         // Set analysis as a Map instead of RequestAnalysis
@@ -220,7 +220,7 @@ class ExShieldComponentTest {
         config.add("bypassParam", "custom.bypass");
 
         NamedList<Object> rules = new NamedList<>();
-        rules.add("rule", createRuleConfig("test-rule", "count <= 100", null, null));
+        rules.add("rule", createRuleConfig("test-rule", "query.count <= 100", null, null));
         config.add("rules", rules);
 
         ExShieldComponent component = new ExShieldComponent();
@@ -290,6 +290,11 @@ class ExShieldComponentTest {
     }
 
     private void setAnalysis(Map<String, Object> queryAnalysis, Map<String, Object> filtersAnalysis) {
+        setAnalysis(queryAnalysis, filtersAnalysis, null);
+    }
+
+    private void setAnalysis(Map<String, Object> queryAnalysis, Map<String, Object> filtersAnalysis,
+                             Map<String, Object> mergedAnalysis) {
         requestContext.put("analysis", new RequestAnalysis() {
             @Override
             public Map<String, Object> queryAnalysis() {
@@ -299,6 +304,11 @@ class ExShieldComponentTest {
             @Override
             public Map<String, Object> filtersAnalysis() {
                 return filtersAnalysis;
+            }
+
+            @Override
+            public Map<String, Object> mergedAnalysis() {
+                return mergedAnalysis;
             }
         });
     }
